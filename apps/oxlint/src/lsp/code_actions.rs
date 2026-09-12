@@ -1,6 +1,6 @@
 use oxc_diagnostics::OxcCode;
 use oxc_linter::FixKind;
-use tower_lsp_server::ls_types::{CodeAction, CodeActionKind, TextEdit, Uri, WorkspaceEdit};
+use tower_lsp_server::gen_lsp_types::{CodeAction, CodeActionKind, TextEdit, Uri, WorkspaceEdit};
 use tracing::debug;
 
 use crate::lsp::{
@@ -25,7 +25,7 @@ fn fix_content_to_code_action(
 ) -> CodeAction {
     CodeAction {
         title: fixed_content.message.into_owned(),
-        kind: Some(CodeActionKind::QUICKFIX),
+        kind: Some(CodeActionKind::QuickFix),
         is_preferred: Some(is_preferred),
         edit: Some(WorkspaceEdit {
             #[expect(clippy::disallowed_types)]
@@ -38,10 +38,7 @@ fn fix_content_to_code_action(
             )])),
             ..WorkspaceEdit::default()
         }),
-        disabled: None,
-        data: None,
-        diagnostics: None,
-        command: None,
+        ..CodeAction::default()
     }
 }
 
@@ -117,10 +114,7 @@ pub fn apply_all_fix_code_action(
             changes: Some(std::collections::HashMap::from([(uri, quick_fixes)])),
             ..WorkspaceEdit::default()
         }),
-        disabled: None,
-        data: None,
-        diagnostics: None,
-        command: None,
+        ..CodeAction::default()
     })
 }
 
@@ -145,10 +139,7 @@ pub fn apply_dangerous_fix_code_action(
             changes: Some(std::collections::HashMap::from([(uri, quick_fixes)])),
             ..WorkspaceEdit::default()
         }),
-        disabled: None,
-        data: None,
-        diagnostics: None,
-        command: None,
+        ..CodeAction::default()
     })
 }
 
@@ -229,10 +220,8 @@ fn remove_overlapping_edits(mut edits: Vec<TextEdit>) -> Vec<TextEdit> {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use oxc_diagnostics::OxcCode;
-    use tower_lsp_server::ls_types::{Position, Range};
+    use tower_lsp_server::gen_lsp_types::{Position, Range};
 
     use oxc_linter::FixKind;
 
@@ -351,7 +340,7 @@ mod tests {
     fn test_apply_all_fix_code_action_uses_safe_kind() {
         let action = apply_all_fix_code_action(
             std::iter::once(make_fix_kind_action(FixKind::SafeFix)),
-            Uri::from_str("file:///test.js").unwrap(),
+            Uri::from("file:///test.js"),
             None,
         )
         .unwrap();
@@ -362,7 +351,7 @@ mod tests {
     fn test_apply_dangerous_fix_code_action_uses_dangerous_kind() {
         let action = apply_dangerous_fix_code_action(
             std::iter::once(make_fix_kind_action(FixKind::DangerousFix)),
-            Uri::from_str("file:///test.js").unwrap(),
+            Uri::from("file:///test.js"),
             None,
         )
         .unwrap();

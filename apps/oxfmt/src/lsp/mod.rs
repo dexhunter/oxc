@@ -5,7 +5,7 @@ use std::{
 };
 
 use oxc_language_server::{LanguageId, run_server};
-use tower_lsp_server::ls_types::Uri;
+use tower_lsp_server::gen_lsp_types::Uri;
 
 use crate::core::{ExternalServices, JsConfigLoaderCb, utils};
 
@@ -45,11 +45,10 @@ pub fn create_fake_file_path_from_language_id(
     uri: &Uri,
 ) -> Option<PathBuf> {
     let file_extension = get_file_extension_from_language_id(language_id)?;
-    // Use the authority (if available) or the last segment of the path as the file name, defaulting to "Untitled" if neither is available
-    let mut name = uri.authority().map_or_else(
-        || uri.path().rsplit_once('/').map_or_else(|| "Untitled", |(_, s)| s.as_str()),
-        |s| s.as_str(),
-    );
+    // replace the any schema with `file://`
+    let non_schema_uri = uri.as_ref().split_once(':')?.1;
+    // get the last segment of the path as the file name
+    let mut name = non_schema_uri.rsplit_once('/').map_or(non_schema_uri, |(_s1, s2)| s2);
     // if the last character is `/`, the name will be empty, so we need to check for that as well
     if name.is_empty() {
         name = "Untitled";
@@ -81,10 +80,8 @@ pub async fn run_lsp(js_config_loader: JsConfigLoaderCb, external_services: Exte
 
 #[cfg(test)]
 mod test {
-    use std::str::FromStr;
-
     use oxc_language_server::LanguageId;
-    use tower_lsp_server::ls_types::Uri;
+    use tower_lsp_server::gen_lsp_types::Uri;
 
     use crate::lsp::create_fake_file_path_from_language_id;
 
@@ -93,12 +90,12 @@ mod test {
         let language_id = LanguageId::new("jsonc".to_string());
         let root = std::env::temp_dir();
 
-        let uri = Uri::from_str("vscode-userdata:/c%3A/Users/User/settings.json").unwrap();
+        let uri = Uri::from("vscode-userdata:/c%3A/Users/User/settings.json");
         let result = create_fake_file_path_from_language_id(&language_id, &root, &uri).unwrap();
         assert_eq!(result.extension().unwrap(), "jsonc");
         assert!(result.starts_with(&root));
 
-        let uri = Uri::from_str("Untitled://Untitled-1").unwrap();
+        let uri = Uri::from("Untitled://Untitled-1");
         let result = create_fake_file_path_from_language_id(&language_id, &root, &uri).unwrap();
         assert_eq!(result.extension().unwrap(), "jsonc");
         assert!(result.starts_with(&root));
